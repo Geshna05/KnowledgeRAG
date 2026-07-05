@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>KnowledgeRAG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a24; --panel2: #1e2230; --border: #2a2f3f;
+    --text: #e8e9ee; --muted: #9199ab; --accent: #7c9cff; --accent2: #4c6ef5;
+    --good: #4fd1a5; --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+  .app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+  .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  .main { display: flex; flex-direction: column; height: 100vh; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 8px; }
+  .card { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  input[type=text], input[type=file] { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);
+         background: #10131c; color: var(--text); font-size: 13px; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: var(--accent2); color: white; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-secondary { background: #2a2f3f; color: var(--text); }
+  .btn-danger { background: transparent; color: var(--bad); padding: 2px 6px; font-size: 12px; }
+  .doc-item { display:flex; justify-content: space-between; align-items:center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .doc-item small { color: var(--muted); display:block; }
+  .doc-check { margin-right: 8px; }
+  .tabs { display:flex; border-bottom: 1px solid var(--border); }
+  .tab { padding: 12px 20px; cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; }
+  .tab.active { color: var(--text); border-bottom: 2px solid var(--accent); }
+  .tab-content { flex:1; overflow-y: auto; padding: 20px; }
+  .chat-log { flex:1; overflow-y:auto; padding: 20px; display:flex; flex-direction:column; gap: 14px; }
+  .msg { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+  .msg.user { align-self:flex-end; background: var(--accent2); color:white; }
+  .msg.assistant { align-self:flex-start; background: var(--panel2); border: 1px solid var(--border); }
+  .citations { margin-top: 8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .citation-chip { font-size: 11px; background: #10131c; border: 1px solid var(--border); border-radius: 20px;
+        padding: 3px 9px; color: var(--muted); text-decoration:none; }
+  .citation-chip:hover { color: var(--accent); border-color: var(--accent); }
+  .chat-input { display:flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border); background: var(--panel); }
+  .chat-input input { flex:1; }
+  .empty { color: var(--muted); font-size: 13px; text-align:center; margin-top: 40px; }
+  .quiz-controls { display:flex; gap: 10px; align-items:center; margin-bottom: 20px; flex-wrap: wrap;}
+  select { background:#10131c; color: var(--text); border:1px solid var(--border); border-radius:6px; padding:8px; }
+  .question-card { background: var(--panel2); border:1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .q-title { font-weight:600; margin-bottom: 10px; }
+  .option { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor:pointer; font-size:13px;}
+  .option:hover { border-color: var(--accent); }
+  .option.correct { border-color: var(--good); color: var(--good); }
+  .option.incorrect { border-color: var(--bad); color: var(--bad); }
+  .reveal-btn { margin-top: 8px; }
+  .explanation { margin-top: 10px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--accent); padding-left: 10px; }
+  .loading { color: var(--muted); font-style: italic; font-size: 13px; }
+  .short-answer-input { margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <h1>📚 KnowledgeRAG</h1>
+
+    <h2>Upload PDF Notes</h2>
+    <div class="card">
+      <input type="file" id="pdfFile" accept="application/pdf" />
+      <button class="btn-primary" style="margin-top:8px; width:100%;" onclick="uploadPdf()">Upload PDF</button>
+    </div>
+
+    <h2>Add YouTube Video</h2>
+    <div class="card">
+      <input type="text" id="ytUrl" placeholder="https://youtube.com/watch?v=..." />
+      <button class="btn-primary" style="margin-top:8px; width:100%;" onclick="uploadYoutube()">Add Video</button>
+    </div>
+
+    <h2>Your Materials <span id="docCount"></span></h2>
+    <div id="docList"><div class="empty">No documents yet.</div></div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <div class="tab active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</div>
+      <div class="tab" id="tab-quiz" onclick="switchTab('quiz')">📝 Quiz</div>
+    </div>
+
+    <div id="panel-chat" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+      <div class="chat-log" id="chatLog">
+        <div class="empty">Upload some notes or a video, then ask a question.</div>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Ask something about your materials..." onkeydown="if(event.key==='Enter') sendChat()" />
+        <button class="btn-primary" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+
+    <div id="panel-quiz" class="tab-content" style="display:none;">
+      <div class="quiz-controls">
+        <label>Questions:
+          <select id="quizNum"><option>3</option><option selected>5</option><option>8</option><option>10</option></select>
+        </label>
+        <label>Difficulty:
+          <select id="quizDiff"><option>easy</option><option selected>medium</option><option>hard</option></select>
+        </label>
+        <button class="btn-primary" onclick="generateQuiz()">Generate Quiz</button>
+      </div>
+      <div id="quizArea"><div class="empty">Generate a quiz from your uploaded materials.</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+let sessionId = null;
+let documents = [];
+
+async function api(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Request failed");
+  }
+  return res.json();
+}
+
+async function init() {
+  const s = await api("/sessions", { method: "POST" });
+  sessionId = s.session_id;
+  await refreshDocs();
+}
+
+function switchTab(name) {
+  document.getElementById("tab-chat").classList.toggle("active", name === "chat");
+  document.getElementById("tab-quiz").classList.toggle("active", name === "quiz");
+  document.getElementById("panel-chat").style.display = name === "chat" ? "flex" : "none";
+  document.getElementById("panel-quiz").style.display = name === "quiz" ? "block" : "none";
+}
+
+async function refreshDocs() {
+  documents = await api("/documents");
+  const list = document.getElementById("docList");
+  const count = document.getElementById("docCount");
+  count.textContent = documents.length ? `(${documents.length})` : "";
+  if (!documents.length) {
+    list.innerHTML = '<div class="empty">No documents yet.</div>';
+    return;
+  }
+  list.innerHTML = documents.map(d => `
+    <div class="doc-item">
+      <label style="display:flex; align-items:center; overflow:hidden;">
+        <input type="checkbox" class="doc-check" value="${d.id}" checked />
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          ${d.type === "pdf" ? "📄" : "🎬"} ${escapeHtml(d.name)}
+        </span>
+      </label>
+      <button class="btn-danger" onclick="deleteDoc('${d.id}')">✕</button>
+    </div>
+  `).join("");
+}
+
+function selectedDocIds() {
+  const boxes = document.querySelectorAll(".doc-check");
+  const ids = Array.from(boxes).filter(b => b.checked).map(b => b.value);
+  return ids.length ? ids : null; // null = search across everything
+}
+
+async function deleteDoc(id) {
+  await api(`/documents/${id}`, { method: "DELETE" });
+  await refreshDocs();
+}
+
+async function uploadPdf() {
+  const fileInput = document.getElementById("pdfFile");
+  if (!fileInput.files.length) return alert("Choose a PDF first.");
+  const fd = new FormData();
+  fd.append("file", fileInput.files[0]);
+  try {
+    await fetch(API_BASE + "/documents/upload-pdf", { method: "POST", body: fd })
+      .then(async r => { if (!r.ok) throw new Error((await r.json()).detail); });
+    fileInput.value = "";
+    await refreshDocs();
+  } catch (e) { alert("Upload failed: " + e.message); }
+}
+
+async function uploadYoutube() {
+  const url = document.getElementById("ytUrl").value.trim();
+  if (!url) return alert("Paste a YouTube URL first.");
+  try {
+    await api("/documents/upload-youtube", { method: "POST", body: JSON.stringify({ url }) });
+    document.getElementById("ytUrl").value = "";
+    await refreshDocs();
+  } catch (e) { alert("Failed: " + e.message); }
+}
+
+function escapeHtml(s) {
+
+  s = String(s ?? "");
+
+  return s.replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+
+}
+
+function appendMessage(role, content, citations = []) {
+  const log = document.getElementById("chatLog");
+  const empty = log.querySelector(".empty");
+  if (empty) empty.remove();
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = escapeHtml(content);
+  if (citations && citations.length) {
+    const cdiv = document.createElement("div");
+    cdiv.className = "citations";
+    cdiv.innerHTML = citations.map(c => {
+      const label = c.source_type === "pdf"
+        ? `[${c.ref}] ${escapeHtml(c.source_name)} · p.${c.page}`
+        : `[${c.ref}] ${escapeHtml(c.source_name)} · ${formatTime(c.timestamp_seconds)}`;
+      return c.url
+        ? `<a class="citation-chip" href="${c.url}" target="_blank">${label}</a>`
+        : `<span class="citation-chip">${label}</span>`;
+    }).join("");
+    div.appendChild(cdiv);
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+async function sendChat() {
+  const input = document.getElementById("chatInput");
+  const message = input.value.trim();
+  if (!message) return;
+  appendMessage("user", message);
+  input.value = "";
+
+  const log = document.getElementById("chatLog");
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "loading";
+  loadingDiv.textContent = "Thinking...";
+  log.appendChild(loadingDiv);
+  log.scrollTop = log.scrollHeight;
+
+  console.log("Sending:", {
+    session_id: sessionId,
+    message,
+    document_ids: selectedDocIds()
+  });
+
+  try {
+    const result = await api("/chat", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sessionId, message, document_ids: selectedDocIds() }),
+    });
+    loadingDiv.remove();
+    appendMessage("assistant", result.answer, result.citations);
+  } catch (e) {
+    loadingDiv.remove();
+    appendMessage("assistant", "Error: " + e.message);
+  }
+}
+
+let currentQuiz = null;
+
+async function generateQuiz() {
+  const num = parseInt(document.getElementById("quizNum").value, 10);
+  const difficulty = document.getElementById("quizDiff").value;
+  const area = document.getElementById("quizArea");
+  area.innerHTML = '<div class="loading">Generating quiz from your materials...</div>';
+  try {
+    const result = await api("/quiz", {
+      method: "POST",
+      body: JSON.stringify({ document_ids: selectedDocIds(), num_questions: num, difficulty }),
+    });
+    console.log(result)
+    currentQuiz = result;
+    renderQuiz(result);
+  } catch (e) {
+    area.innerHTML = `<div class="empty">Failed to generate quiz: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderQuiz(quiz) {
+  const area = document.getElementById("quizArea");
+  if (!quiz.questions || !quiz.questions.length) {
+    area.innerHTML = '<div class="empty">No quiz could be generated. Upload some material first.</div>';
+    return;
+  }
+  area.innerHTML = quiz.questions.map((q, i) => {
+    const qid = `q${i}`;
+    if (q.type === "mcq" && q.options) {
+      return `
+        <div class="question-card">
+          <div class="q-title">${i + 1}. ${escapeHtml(q.question)}</div>
+          ${q.options.map(opt => `
+            <div class="option" onclick="revealMcq('${qid}', this, '${escapeHtml(q.answer).replace(/'/g, "\\'")}')">${escapeHtml(opt)}</div>
+          `).join("")}
+          <div class="explanation" id="${qid}-exp" style="display:none;">${escapeHtml(q.explanation || "")}</div>
+        </div>`;
+    } else {
+      return `
+        <div class="question-card">
+          <div class="q-title">${i + 1}. ${escapeHtml(q.question)}</div>
+          <input type="text" class="short-answer-input" id="${qid}-input" placeholder="Type your answer..." />
+          <div>
+            <button class="btn-secondary reveal-btn" onclick="revealShort('${qid}', '${escapeHtml(q.answer).replace(/'/g, "\\'")}', '${escapeHtml(q.explanation || "").replace(/'/g, "\\'")}')">Reveal Answer</button>
+          </div>
+          <div class="explanation" id="${qid}-exp" style="display:none;"></div>
+        </div>`;
+    }
+  }).join("");
+}
+
+function revealMcq(qid, el, correctAnswer) {
+  const card = el.closest(".question-card");
+  const options = card.querySelectorAll(".option");
+  options.forEach(o => {
+    o.onclick = null;
+    if (o.textContent.trim() === correctAnswer.trim()) o.classList.add("correct");
+    else if (o === el) o.classList.add("incorrect");
+  });
+  const exp = document.getElementById(`${qid}-exp`);
+  if (exp) exp.style.display = "block";
+}
+
+function revealShort(qid, answer, explanation) {
+  const exp = document.getElementById(`${qid}-exp`);
+  exp.innerHTML = `<strong>Answer:</strong> ${answer}${explanation ? "<br/><br/>" + explanation : ""}`;
+  exp.style.display = "block";
+}
+
+init();
+</script>
+</body>
+</html>
