@@ -110,14 +110,15 @@ Talks to the backend at `http://localhost:8000` (edit `API_BASE` at the top of t
 
 ### Chat
 
-![Chat](screenshots/CHAT.png)
+<img width="1911" height="726" alt="CHAT" src="https://github.com/user-attachments/assets/af542119-668c-4b0f-977a-103b202ff46f" />
 
 ### MCQ Quiz - Example 1
 
-![MCQ Quiz 1](screenshots/MCQ1.png)
+<img width="1911" height="588" alt="MCQ1" src="https://github.com/user-attachments/assets/bf78c29a-d1a1-43f7-ade9-385da8925e9e" />
 
 ### MCQ Quiz - Example 2
 
-![MCQ Quiz 2](screenshots/MCQ2.png)
+<img width="1887" height="922" alt="MCQ2" src="https://github.com/user-attachments/assets/47223ccc-6722-4e3d-86a6-836c3289ea86" />
+
 
 
