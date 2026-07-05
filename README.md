@@ -1,12 +1,7 @@
-# Study Assistant (RAG) — 100% Free / Local LLM Version
+# KnowledgeRAG
 
 Upload PDF notes and/or YouTube videos, chat with the content, get answers
 with citations (PDF page number / video timestamp), and auto-generate quizzes.
-
-**No paid API required.** The LLM runs locally on your machine via
-[Ollama](https://ollama.com) — free, no API key, no signup, no usage limits.
-Embeddings are also local (Chroma's bundled ONNX model). The only thing that
-touches the internet is fetching YouTube transcripts.
 
 ## Architecture
 
